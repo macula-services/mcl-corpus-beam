@@ -7,9 +7,28 @@ stage: stable
 
 # Event Sourcing: Sagas and Process Managers
 
-*Two ways to run a business process that spans several aggregates or services. A saga moves forward step by step and undoes completed steps when it cannot finish; a process manager is a stateful coordinator that decides the next step from what it has seen.*
+*A saga moves forward step by step and undoes completed steps when it cannot finish. A process manager is a message-driven state machine that runs one business process to a known end state. What defines the second is the job, not how many aggregates or services it touches.*
 
 ---
+
+## What a process manager is
+
+A process manager is a message-driven state machine with one instance per
+business process, keyed by a correlation id. It receives the events that
+belong to its process, decides which command to send next, and is
+responsible for making sure the process reaches a known end state. Its
+lifetime matches the process: it starts when the process starts and is
+done when the process is done.
+
+The pattern is older than event sourcing and goes by several names:
+orchestration, workflow, business process (Hohpe and Woolf called it
+Process Manager). Event sourcing changes only where its state lives.
+
+The defining property is its **job**. A process manager is not defined by
+spanning two aggregates, or two divisions, or two services. Those are
+things it may do when the process requires it. A rule that reacts to one
+event inside a single aggregate and sends one more command is a process
+manager too.
 
 ## The terms, and why they get confused
 
@@ -37,6 +56,35 @@ easier to reason about than a state machine. Move to a process manager
 when the flow needs to wait, branch or revisit earlier steps; a small
 change in business rules is often enough to tip the balance.
 
+## Where a policy lives
+
+Everything in an event-sourced system that says "when this happened,
+maybe do that" is a process manager. What varies is its reach, not its
+nature:
+
+| Reach | Example |
+|-------|---------|
+| Inside one aggregate | A full table starts the game; a flagged clock ends it |
+| Across aggregates in one division | Order paid starts the reservation; reservation expired releases the stock |
+| Across divisions | Order placed asks billing to charge, as an integration fact |
+
+All three are `on_*` slices with the same shape: subscribe to the event,
+decide, send the next command. Crossing a division boundary only adds
+the integration rules ([INTEGRATION_EVENTS](INTEGRATION_EVENTS.md)); it
+does not make the slice a different kind of thing.
+
+**Do not fold a policy into a command handler to make two events atomic.**
+It is tempting when the reaction is immediate: emit both events in one
+append and the crash window between them disappears. The cost is that the
+policy becomes invisible at the filesystem level, hidden inside a handler
+that now does two jobs, and nobody can find it when its rule changes.
+
+Close a crash window from inside the process manager instead: **catch up
+on start**. If the process manager starts and finds an event it has seen
+that has no follow-up command, it sends the missing command then. That
+makes the reaction at-least-once and recoverable, at the price of an
+idempotent command handler, which was needed anyway.
+
 ## A process manager, concretely
 
 A seat purchase touching reservation, payment and ticketing:
@@ -58,24 +106,44 @@ known state.
 An event-sourced process manager stores the events it has received (or
 its own decisions) and derives its state by folding them, exactly like
 an aggregate. The benefit shows up over long lifetimes. A process that
-runs for weeks will outlive several deployments; if its state is a
-stored snapshot, every new version must understand every old snapshot
+runs for weeks or months will outlive several deployments; if its state is
+a stored snapshot, every new version must understand every old snapshot
 format. If its state is derived from events, a new version can simply
 fold the same events with new logic.
 
+This is the only difference between the plain pattern and the
+event-sourced one, and it is the difference that makes long processes
+survivable. Court documents, loans and shipping claims really do take
+months; the version that starts a process is rarely the version that
+finishes it.
+
 ## Changing a process while instances are running
 
-Do not silently swap the definition under running instances. If version
-2 reorders the steps, an instance halfway through version 1 may skip a
-step or do one twice. Options, from simplest:
+Do not deploy a new version over running instances. The reason is not
+packaging, it is that the change is usually to the **process itself**. If
+version 1 values the goods, releases them, moves them and then sends the
+invoice, and version 2 sends the invoice before the move, then an instance
+that was at "send the invoice" at the switchover has already moved the
+goods. Continue it under version 2 and it moves them again.
 
-1. **Pin instances to their starting version.** Old instances finish on
-   the old code; new ones start on the new code. Deploy both until the
-   old ones drain.
-2. **Hand over explicitly.** The old version emits an event recording
+So versions are tied to the version the instance was running when it
+started. New instances start on the new version; old instances finish on
+the old one; both run until the old ones drain. Where that is not
+acceptable, the hand-over has to be explicit:
+
+1. **Interrupt and hand over.** The old version emits an event recording
    exactly where the instance stands (for example
-   `PurchaseHandedOver{purchase_id, reserved: true, paid: false}`), and
-   the new version subscribes to it and continues from that state.
+   `PurchaseInterrupted{purchase_id, reserved: true, paid: false}`), carrying
+   the state the new version needs. The new version subscribes to that
+   event and takes over from there.
+2. **Pin instances to their starting version.** Old instances finish on
+   the old code; new ones start on the new code. Cheaper, and usually
+   enough.
+
+The first option needs to be designed from the beginning: the old version
+has to know which state to put on the interruption event, and the new
+version has to know how to translate it. It is also simpler than most of
+the alternatives, because everything that matters travels in one event.
 
 ## On the BEAM
 
@@ -83,12 +151,14 @@ A process manager instance maps well onto a supervised process
 (GenServer or `gen_statem`) registered by correlation id, with timeouts
 from `Process.send_after/3` or `gen_statem` state timeouts. Timeouts
 must themselves be recorded or recomputed from events on restart, or a
-crash will lose them.
+crash will lose them. The catch-up-on-start rule above is the other half
+of the same idea: whatever the process was waiting for, it can work out
+again from its own events.
 
 ## Sources
 
 - Hector Garcia-Molina and Kenneth Salem, "Sagas", *Proceedings of ACM SIGMOD 1987* (free PDF). https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf
 - Microsoft patterns & practices, "Reference 6: A Saga on Sagas", *Exploring CQRS and Event Sourcing*, 2012 (free). https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10)
 - Gregor Hohpe and Bobby Woolf, "Process Manager" and "Routing Slip", Enterprise Integration Patterns (free pattern pages). https://www.enterpriseintegrationpatterns.com/patterns/messaging/ProcessManager.html and https://www.enterpriseintegrationpatterns.com/patterns/messaging/RoutingTable.html
-- Greg Young, *Patterns of Event Sourced Systems*, Leanpub (in progress, last updated 2025). https://leanpub.com/patternsofeventsourcedsystems
+- Greg Young, *Patterns of Event Sourced Systems*, Leanpub (in progress, last updated 2025): the chapters "Process Manager", "Event Sourced Process Manager" and "Saga". https://leanpub.com/patternsofeventsourcedsystems
 - Greg Young, *Versioning in an Event Sourced System*, Leanpub (last updated 2017; free to read online). https://leanpub.com/esversioning/read

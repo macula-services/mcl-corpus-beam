@@ -63,7 +63,7 @@ listed.
 | **Read model** | A query-optimized representation built by projections (a table, a report, a file). Thrown away and rebuilt, never edited by hand. |
 | **Checkpoint** | The last-consumed event position of a projection, so it resumes where it stopped. May live in memory, a file, or the database. |
 | **Saga** | A long-running, cross-aggregate workflow that coordinates several steps and compensates for failures. |
-| **Process manager** | A stateful saga: it receives events, tracks the workflow's state, and issues commands to continue it. |
+| **Process manager** | A message-driven state machine, one instance per business process (correlated by id), that drives the process to a known end state. Defined by that job, not by spanning aggregates or divisions. |
 | **Causation id** | Identifies the event that caused another event: the causal chain, for tracing and deduplication. |
 | **Correlation id** | Identifies one workflow or user action across all the events and commands it produced. |
 | **Conversation id** | Identifies one interaction between two services (one request-response exchange). |

@@ -33,6 +33,54 @@ seriously: detect a torn final record after a crash (length prefix plus
 checksum), and `fsync` at the points where you promise the caller the
 event is safe.
 
+Where the limit actually sits: hundreds to low thousands of events is
+comfortable, and 5,000 events is a few megabytes and well under a second
+to replay, so "just a file" is a complete answer at that size and not a
+toy. What ends the pattern is not elegance but two concrete things:
+
+- **volume**: hundreds of millions of events, which no forward read of
+  one file wants to do at startup;
+- **continuous operation**: growth with no seam at which the file can be
+  closed. A system with real downtime has that seam. A market that opens
+  and closes writes the day to one file, moves it aside at the close, and
+  replays it the next morning, which is a good design for exactly that
+  workload. A system that must run 24 hours a day has no close of day,
+  and is better served by segments (see below).
+
+### One file per process instance
+
+A question worth answering explicitly: can an appending file be the event
+log of **one process instance** (one order, one loan, one case), rather
+than of the whole system? Yes, under conditions.
+
+It fits when processes are independent, each history is short, and the
+unit of archive, replay, audit or deletion is the process itself: a
+claim file that can be handed to a regulator, a device that syncs its own
+history when it reconnects. The file's length is its own checkpoint, and
+replay is one forward read.
+
+It costs what a file always costs, multiplied by the number of files:
+
+- **file count** is the new scaling problem. Millions of small files
+  strain directory operations, backup, and filesystem checks in ways an
+  append to one file does not.
+- **no order across instances.** Ordering exists inside each file only;
+  anything correlating two processes needs ids rather than positions
+  ([MULTI_EVENT_LOG](MULTI_EVENT_LOG.md)).
+- **durability is per file**: each file needs its own torn-write
+  detection and `fsync` discipline.
+- **cleanup is a separate job.** A finished process leaves a file behind
+  until something archives or removes it, and that something needs a
+  retention rule.
+
+Combining it with a file-based snapshot is sound, with one rule: the
+snapshot is an optimisation of replay, never the truth. Write the
+snapshot as a new file beside the log, rename it into place atomically so
+a reader never sees half of one, and record the log position it covers
+([CHECKPOINTS](CHECKPOINTS.md)). Replay then means "load the snapshot,
+read the log forward from there". If snapshot and log ever disagree, the
+log wins, and the snapshot is rebuilt.
+
 ### A segmented log
 
 The log is split into fixed-size segment files. Only the newest segment
@@ -89,7 +137,9 @@ between components.
 
 Related: [CHECKPOINTS](CHECKPOINTS.md) for how consumers remember where
 they are in a log, [STREAM_FORK_AND_JOIN](STREAM_FORK_AND_JOIN.md) for
-deriving new streams from existing ones.
+deriving new streams from existing ones, and
+[MULTI_EVENT_LOG](MULTI_EVENT_LOG.md) for a system that runs several logs
+at once.
 
 ## Sources
 

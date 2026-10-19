@@ -72,7 +72,8 @@ The write model, the read models, and everything between.
 | [EVENTS](event-sourcing/EVENTS.md) | Past tense, atomicity, immutability |
 | [COMMANDS_AND_QUERIES](event-sourcing/COMMANDS_AND_QUERIES.md) | Commands return status only; queries never mutate |
 | [CQRS](event-sourcing/CQRS.md) | The one-line split; what it is not |
-| [EVENT_LOGS](event-sourcing/EVENT_LOGS.md) | Appending, segmented, distributed; streams; log vs sourcing |
+| [EVENT_LOGS](event-sourcing/EVENT_LOGS.md) | Appending, segmented, distributed; streams; log vs sourcing; one file per process |
+| [MULTI_EVENT_LOG](event-sourcing/MULTI_EVENT_LOG.md) | More than one log: order, position and exactly-once across them |
 | [PROJECTIONS](event-sourcing/PROJECTIONS.md) | Simple, updating, inserting, batched; replay vs live |
 | [CHECKPOINTS](event-sourcing/CHECKPOINTS.md) | Memory, file, database, stream, shared, consensus |
 | [SAGAS_AND_PROCESS_MANAGERS](event-sourcing/SAGAS_AND_PROCESS_MANAGERS.md) | The distinction; versioning long processes |
@@ -80,6 +81,8 @@ The write model, the read models, and everything between.
 | [DOMAIN_MODELING](event-sourcing/DOMAIN_MODELING.md) | Bounded contexts, entities vs value objects, ubiquitous language |
 | [IDS_AND_CORRELATION](event-sourcing/IDS_AND_CORRELATION.md) | Message, causation, correlation, conversation ids |
 | [INTEGRATION_EVENTS](event-sourcing/INTEGRATION_EVENTS.md) | Denormalized contracts; aggregators; direct integration |
+| [DIRECT_EVENT_INTEGRATIONS](event-sourcing/DIRECT_EVENT_INTEGRATIONS.md) | Services subscribing to each other's events; when it holds and how it fails |
+| [NEGOTIATING_AGGREGATOR](event-sourcing/NEGOTIATING_AGGREGATOR.md) | One document plus a link; consumers fetch the version they understand |
 | [STREAM_FORK_AND_JOIN](event-sourcing/STREAM_FORK_AND_JOIN.md) | Reindexing with link events; join ordering |
 
 ### Testing — `testing/`

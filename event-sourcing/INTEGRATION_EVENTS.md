@@ -70,7 +70,9 @@ understands (HTTP content negotiation), and the provider converts. That
 decouples version upgrades: each consumer moves when it is ready. The
 trade-off is an extra round trip and a provider that must stay available
 to serve reads. This is the notification-versus-state-transfer choice
-Martin Fowler describes.
+Martin Fowler describes. Worked through in full, including how to learn
+who still uses an old version, in
+[NEGOTIATING_AGGREGATOR](NEGOTIATING_AGGREGATOR.md).
 
 ## Direct subscription and its limits
 
@@ -83,7 +85,9 @@ teams.
 
 One situation where broad direct subscription stays sensible: a single
 dataset that almost everyone needs (a price feed, a product catalogue).
-Then a single well-documented feed is simpler than many adapters.
+Then a single well-documented feed is simpler than many adapters. The
+pattern, its failure modes and the ways out are in
+[DIRECT_EVENT_INTEGRATIONS](DIRECT_EVENT_INTEGRATIONS.md).
 
 ## Choosing
 
