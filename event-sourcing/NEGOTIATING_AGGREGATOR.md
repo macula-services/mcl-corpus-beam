@@ -30,8 +30,8 @@ Two ways out:
    URI; a consumer that cannot read the latest fetches the URI with an
    `Accept` header naming the version it wants, and the provider converts.
 
-The second is the negotiating aggregator, and Greg Young's book prefers
-it wherever several consumers upgrade on their own schedules.
+The second is the negotiating aggregator, and Greg Young's book leans
+toward it wherever several consumers upgrade on their own schedules.
 
 ## The shape
 

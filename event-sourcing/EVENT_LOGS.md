@@ -143,6 +143,6 @@ at once.
 
 ## Sources
 
-- Greg Young, *Patterns of Event Sourced Systems*, Leanpub (in progress, last updated 2025). https://leanpub.com/patternsofeventsourcedsystems
+- Greg Young, *Patterns of Event Sourced Systems*, Leanpub (in progress, last updated 2025): the chapters "Event Log" and "Appending File Event Log". https://leanpub.com/patternsofeventsourcedsystems
 - Martin Fowler, "Event Sourcing", martinfowler.com, 2005 (free). https://martinfowler.com/eaaDev/EventSourcing.html
 - Microsoft, "Event Sourcing pattern" (event store options), Azure Architecture Center (free). https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing

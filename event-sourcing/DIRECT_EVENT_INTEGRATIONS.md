@@ -13,9 +13,8 @@ stage: stable
 
 ## The shape
 
-Each service listens to the events of the others and does something
-because of them. Not only building a read model: taking action. With four
-services:
+Each service listens to the events of the others and acts on them. Not
+only building a read model: taking action. With four services:
 
 ```
 A listens to C, D
@@ -37,9 +36,8 @@ designed; it is the sum of those decisions.
   this?" from memory.
 - Reactions are immediate and easy to follow in a log.
 
-This is a real engineering choice, not a mistake, and the book says so
-plainly: there is nothing inherently wrong with direct event
-integration, and there are situations where it is the normal thing to do.
+The chapter treats it as a legitimate choice with real uses, not a
+mistake.
 
 ## Why it stops working
 

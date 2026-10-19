@@ -27,8 +27,9 @@ Process Manager). Event sourcing changes only where its state lives.
 The defining property is its **job**. A process manager is not defined by
 spanning two aggregates, or two divisions, or two services. Those are
 things it may do when the process requires it. A rule that reacts to one
-event inside a single aggregate and sends one more command is a process
-manager too.
+event inside a single aggregate and sends one more command is written the
+same way; it is the degenerate case, one transition and nothing to
+remember.
 
 ## The terms, and why they get confused
 
@@ -58,9 +59,12 @@ change in business rules is often enough to tip the balance.
 
 ## Where a policy lives
 
-Everything in an event-sourced system that says "when this happened,
-maybe do that" is a process manager. What varies is its reach, not its
-nature:
+Every rule that says "when this happened, maybe do that" is written the
+same way in an event-sourced system, as an `on_*` slice. It becomes a
+process manager when it carries state from one message to the next, since
+that state is what lets it drive a process; a rule that reacts to a single
+event is the degenerate case, one transition and no state to keep. What
+varies beyond that is its reach:
 
 | Reach | Example |
 |-------|---------|
@@ -111,39 +115,36 @@ a stored snapshot, every new version must understand every old snapshot
 format. If its state is derived from events, a new version can simply
 fold the same events with new logic.
 
-This is the only difference between the plain pattern and the
-event-sourced one, and it is the difference that makes long processes
-survivable. Court documents, loans and shipping claims really do take
-months; the version that starts a process is rarely the version that
-finishes it.
+That one move, storing the decisions as events rather than the state as a
+snapshot, is what makes long processes survivable. Court documents, loans
+and shipping claims really do take months; the version that starts a
+process is rarely the version that finishes it.
 
 ## Changing a process while instances are running
 
-Do not deploy a new version over running instances. The reason is not
-packaging, it is that the change is usually to the **process itself**. If
-version 1 values the goods, releases them, moves them and then sends the
-invoice, and version 2 sends the invoice before the move, then an instance
-that was at "send the invoice" at the switchover has already moved the
-goods. Continue it under version 2 and it moves them again.
+A new version must not take over instances that are already running. The
+reason is not packaging, it is that the change is usually to the **process
+itself**. If version 1 values the goods, releases them, moves them and
+then sends the invoice, and version 2 sends the invoice before the move,
+then an instance that was at "send the invoice" at the switchover has
+already moved the goods. Continue it under version 2 and it moves them
+again.
 
 So versions are tied to the version the instance was running when it
 started. New instances start on the new version; old instances finish on
-the old one; both run until the old ones drain. Where that is not
-acceptable, the hand-over has to be explicit:
+the old one; both run until the old ones drain. That is the cheap answer,
+and usually enough.
 
-1. **Interrupt and hand over.** The old version emits an event recording
-   exactly where the instance stands (for example
-   `PurchaseInterrupted{purchase_id, reserved: true, paid: false}`), carrying
-   the state the new version needs. The new version subscribes to that
-   event and takes over from there.
-2. **Pin instances to their starting version.** Old instances finish on
-   the old code; new ones start on the new code. Cheaper, and usually
-   enough.
+When it is not acceptable, the hand-over has to be explicit. The old
+version emits an event recording exactly where the instance stands (for
+example `PurchaseInterrupted{purchase_id, reserved: true, paid: false}`),
+carrying the state the new version needs; the new version subscribes to
+that event and takes over from there.
 
-The first option needs to be designed from the beginning: the old version
-has to know which state to put on the interruption event, and the new
-version has to know how to translate it. It is also simpler than most of
-the alternatives, because everything that matters travels in one event.
+The hand-over has to be planned in advance: the old version must know
+which state to put on the interruption event, and the new version must
+know how to translate it. It is also simpler than most of the
+alternatives, because everything that matters travels in one event.
 
 ## On the BEAM
 
@@ -160,5 +161,5 @@ again from its own events.
 - Hector Garcia-Molina and Kenneth Salem, "Sagas", *Proceedings of ACM SIGMOD 1987* (free PDF). https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf
 - Microsoft patterns & practices, "Reference 6: A Saga on Sagas", *Exploring CQRS and Event Sourcing*, 2012 (free). https://learn.microsoft.com/en-us/previous-versions/msp-n-p/jj591569(v=pandp.10)
 - Gregor Hohpe and Bobby Woolf, "Process Manager" and "Routing Slip", Enterprise Integration Patterns (free pattern pages). https://www.enterpriseintegrationpatterns.com/patterns/messaging/ProcessManager.html and https://www.enterpriseintegrationpatterns.com/patterns/messaging/RoutingTable.html
-- Greg Young, *Patterns of Event Sourced Systems*, Leanpub (in progress, last updated 2025): the chapters "Process Manager", "Event Sourced Process Manager" and "Saga". https://leanpub.com/patternsofeventsourcedsystems
+- Greg Young, *Patterns of Event Sourced Systems*, Leanpub (in progress, last updated 2025): the chapters "Event Sourced Process Manager" and "Event Sourced Saga". https://leanpub.com/patternsofeventsourcedsystems
 - Greg Young, *Versioning in an Event Sourced System*, Leanpub (last updated 2017; free to read online). https://leanpub.com/esversioning/read
